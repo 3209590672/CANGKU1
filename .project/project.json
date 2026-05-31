@@ -1,0 +1,50 @@
+{
+  "$schema": "../schemas/project.schema.json",
+  "project_id": "p_r0m1",
+  "author": {
+    "id": "1834113756"
+  },
+  "entry": "main.lua",
+  "version": "1.0.16",
+  "taptap_publish": {
+    "title": "苍穹浩瀚",
+    "description": "驾驶飞船在宇宙中穿梭，闪避小行星，收集能量水晶，长按空格折跃！",
+    "category": "action",
+    "screen_orientation": "landscape",
+    "collection_type": "sce",
+    "trial_note": "TapTap 48H 广州OGICN队",
+    "app_platforms": "1,2",
+    "developer_id": 407882,
+    "app_id": 864562,
+    "miniapp_id": "tapmca5yzsthjw85ht",
+    "gameplay_demo_video_source": "https://tapcode-sce.spark.xd.com/videos/p_r0m1/1780204797970-rec_9222519a-cc58-4cce-b305-5683cc1fd096.mp4"
+  },
+  "assets": {
+    "icon": "./game_material/ICON_2026-05-31T04-18-49_01.png",
+    "screenshots": [
+      "./game_material/SCREENSHOT_2026-05-31T04-18-49_01.png",
+      "./game_material/SCREENSHOT_2026-05-31T04-18-49_02.png",
+      "./game_material/SCREENSHOT_2026-05-31T04-18-49_03.png"
+    ],
+    "promotional_image": "./game_material/PROMO_2026-05-31T04-18-49_01.jpg",
+    "promotional_image_url": "https://tapcode-sce.spark.xd.com/assets/game_material/苍穹浩瀚/PROMO_2026-05-31T04-18-49_01.jpg",
+    "screenshot_urls": [
+      "https://tapcode-sce.spark.xd.com/assets/game_material/苍穹浩瀚/SCREENSHOT_2026-05-31T04-18-49_01.png",
+      "https://tapcode-sce.spark.xd.com/assets/game_material/苍穹浩瀚/SCREENSHOT_2026-05-31T04-18-49_02.png",
+      "https://tapcode-sce.spark.xd.com/assets/game_material/苍穹浩瀚/SCREENSHOT_2026-05-31T04-18-49_03.png"
+    ],
+    "icon_url": "https://tapcode-sce.spark.xd.com/assets/game_material/苍穹浩瀚/ICON_2026-05-31T04-18-49_01.png",
+    "cover_horizontal": "./.project/game_material/COVER_HORIZONTAL_2026-05-31T04-26-05_01.png",
+    "cover_horizontal_url": "https://tapcode-sce.spark.xd.com/assets/game_material/苍穹浩瀚/COVER_HORIZONTAL_2026-05-31T04-26-05_01.png",
+    "cover_vertical": "./.project/game_material/COVER_VERTICAL_2026-05-31T04-26-05_01.png",
+    "cover_vertical_url": "https://tapcode-sce.spark.xd.com/assets/game_material/苍穹浩瀚/COVER_VERTICAL_2026-05-31T04-26-05_01.png"
+  },
+  "test_qrcode": {
+    "url": "https://tapcode-sce.spark.xd.com/qrcode/p_r0m1_1780076358292.png",
+    "generated_at": "2026-05-29T17:39:18.441Z"
+  },
+  "metadata": {
+    "updated_at": "2026-05-31T04:27:16.141Z",
+    "promo_dependent_hash": "98fb99f80f598f5ed3534b3d6a1d2828"
+  }
+}
