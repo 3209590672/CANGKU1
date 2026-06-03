@@ -1,0 +1,23 @@
+# 引擎内部资源（只读，不提交）
+.build/
+dist/
+.tmp/
+node_modules/
+logs/
+engine-docs/
+examples/
+templates/
+urhox-libs/
+schemas/
+.emmylua/
+.claude/
+.project/
+prompts/
+
+# 工具链（非用户代码）
+.agent/
+.cli/
+
+# 杂项
+*.meta
+CANGKU1
