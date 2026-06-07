@@ -18,6 +18,7 @@ local FSM = require("layer1_framework/state_machine")
 local EventBus = require("layer1_framework/event_bus")
 -- Layer 2: 可复用模式（设计模式复用）
 local InputManager = require("layer2_patterns/input_manager")
+local TouchControls = require("layer2_patterns/touch_controls")
 local GeomUtils = require("layer2_patterns/geometry_utils")
 local MatFactory = require("layer2_patterns/material_factory")
 -- Layer 3: 游戏逻辑（特定于本项目）
@@ -37,6 +38,7 @@ local Shield = require("layer3_gameplay/shield")
 local EngineTrails = require("layer3_gameplay/engine_trails")
 local WarpVisuals = require("layer3_gameplay/warp_visuals")
 local HUD = require("layer3_gameplay/hud")
+local ShipController = require("layer3_gameplay/ship_controller")
 local GameFlow = require("layer3_gameplay/game_flow")
 
 -- ============================================================================
@@ -95,6 +97,18 @@ local story_ = Story.new()  -- 模块化剧情管理
 local inputMgr_ = InputManager.new()
 local eventBus_ = EventBus.new()
 local gameFSM_ = FSM.new({ "menu", "playing", "gameover", "story_choice", "story_ending" }, "menu")
+
+-- FSM 状态名 → gs.phase 整数映射（FSM 为唯一写入口，gs.phase 保持读兼容）
+local STATE_NAME_TO_PHASE = {
+    menu = 1,
+    playing = 2,
+    gameover = 3,
+    story_choice = 4,
+    story_ending = 5,
+}
+gameFSM_:on("transition", function(from, to)
+    gs.phase = STATE_NAME_TO_PHASE[to] or 1
+end)
 
 -- 菜单按钮动画引用
 local menuStartLabel_ = nil
@@ -155,6 +169,9 @@ function Start()
         scale = UI.Scale.DEFAULT,
     })
 
+    -- 初始化触摸控制（手机端自动显示虚拟摇杆和按钮）
+    TouchControls.init()
+
     InitCachedMaterials()
 
     CreateScene()
@@ -176,7 +193,7 @@ function Start()
 
     Weapons.init({
         scene = scene_,
-        input = input,
+        inputMgr = inputMgr_,
         mdlBox = mdlBox_,
         mdlSphere = mdlSphere_,
         bulletCoreMat = bulletCoreMat_,
@@ -184,6 +201,7 @@ function Start()
         bulletTrailMats = bulletTrailMats_,
         bulletTipMat = bulletTipMat_,
         getShipPos = function() return gs.shipX, gs.shipY end,
+        eventBus = eventBus_,
     })
 
     Effects.init({
@@ -226,8 +244,13 @@ function Start()
         Asteroids = Asteroids,
         Crystals = Crystals,
         Effects = Effects,
-        onGameOver = function() GameOver() end,
+        eventBus = eventBus_,
     })
+
+    -- EventBus 订阅：碰撞模块发出的跨模块事件
+    eventBus_:on("game_over", function(_score)
+        GameOver()
+    end)
 
     CreateStarDusts()
     CreateWarpStreaks()
@@ -247,42 +270,45 @@ function Start()
     nvgCreateFont(vg, "sans", "Fonts/MiSans-Regular.ttf")
     HUD.setNanoVG(vg)
 
-    -- 初始化游戏流程模块
+    -- 初始化飞船控制器
+    ShipController.init({
+        gs = gs,
+        inputMgr = inputMgr_,
+        shipNode = shipNode_,
+        EngineTrails = EngineTrails,
+        eventBus = eventBus_,
+    })
+
+    -- 初始化游戏流程模块（收窄 ctx：ISP 最小依赖集）
     GameFlow.init({
         gs = gs,
-        STATE_MENU = STATE_MENU,
-        STATE_PLAYING = STATE_PLAYING,
-        STATE_GAMEOVER = STATE_GAMEOVER,
-        STATE_STORY_CHOICE = STATE_STORY_CHOICE,
-        STATE_STORY_ENDING = STATE_STORY_ENDING,
+        fsm = gameFSM_,
+        eventBus = eventBus_,
         shipNode = shipNode_,
         GameState = GameState,
-        GameAudio = GameAudio,
         Crystals = Crystals,
         Weapons = Weapons,
         Asteroids = Asteroids,
         Effects = Effects,
-        Background = Background,
         Shield = Shield,
         EngineTrails = EngineTrails,
-        WarpVisuals = {
-            resetWingTrail = function()
-                WarpVisuals.resetWingTrail(EngineTrails.getWarpWingTrail())
-            end,
-        },
         story = story_,
         showMenuUI = ShowMenuUI,
         showPlayingUI = ShowPlayingUI,
         showGameOverUI = ShowGameOverUI,
-        showStoryChoiceUI = function(thresholdIdx)
-            ShowStoryChoiceUI(thresholdIdx)
-        end,
-        showStoryEndingUI = function(ending)
-            ShowStoryEndingUI(ending)
-        end,
-        playEndingBGM = PlayEndingBGM,
-        stopEndingBGM = StopEndingBGM,
     })
+
+    -- EventBus 订阅：game_start 时重置翼尖拖尾（原 GameFlow 直调 WarpVisuals）
+    eventBus_:on("game_start", function()
+        WarpVisuals.resetWingTrail(EngineTrails.getWarpWingTrail())
+    end)
+
+    -- EventBus 订阅：game_return_menu 时重建背景装饰（原 GameFlow 直调 Background）
+    eventBus_:on("game_return_menu", function()
+        Background.createStarDusts()
+        Background.createDecoAsteroids()
+        Background.createMeteors()
+    end)
 
     SubscribeToEvent("Update", "HandleUpdate")
     SubscribeToEvent(vg, "NanoVGRender", "HandleNanoVGRender")
@@ -315,7 +341,7 @@ end
 -- ============================================================================
 
 function InitBGM()
-    GameAudio.init(scene_, cache)
+    GameAudio.init(scene_, cache, eventBus_)
     GameAudio.setMenuChecker(function() return gs.phase == STATE_MENU end)
 end
 
@@ -349,6 +375,7 @@ end
 -- ============================================================================
 
 function ShowMenuUI()
+    TouchControls.setVisible(false)
     local refs = GameUI.showMenu({
         bgmEnabled = GameAudio.isBgmEnabled(),
         onStart = function() StartGame() end,
@@ -360,6 +387,7 @@ function ShowMenuUI()
 end
 
 function ShowPlayingUI()
+    TouchControls.setVisible(true)
     local refs = GameUI.showPlaying({ warpSpeed = gs.warpSpeed })
     -- 注入 HUD 模块控件引用
     HUD.setWidgets(refs)
@@ -367,6 +395,7 @@ function ShowPlayingUI()
 end
 
 function ShowGameOverUI()
+    TouchControls.setVisible(false)
     PlayEndingBGM("永恒漂泊")
     local refs = GameUI.showGameOver({
         score = gs.score,
@@ -379,31 +408,20 @@ function ShowGameOverUI()
     endingMusicBtn_ = refs.endingMusicBtn
 end
 
-function ShowStoryChoiceUI(thresholdIdx)
-    gs.phase = STATE_STORY_CHOICE
-    GameUI.showStoryChoice({
-        thresholdIdx = thresholdIdx,
-        score = gs.score,
-        story = story_,
-        onChoiceMade = function(action, tidx)
-            if action == "repair" then gs.lives = 5 end
-            local isEnding = story_:makeChoice(action, tidx)
-            OnStoryChoiceMade(isEnding)
-        end,
-    })
-end
+
 
 function OnStoryChoiceMade(isEnding)
     if isEnding then
         ShowStoryEndingUI()
     else
-        gs.phase = STATE_PLAYING
+        gameFSM_:go("playing")
         ShowPlayingUI()
     end
 end
 
 function ShowStoryEndingUI(ending)
-    gs.phase = STATE_STORY_ENDING
+    TouchControls.setVisible(false)
+    gameFSM_:go("story_ending")
     ending = ending or story_:getEnding()
     PlayEndingBGM(ending.key)
     local refs = GameUI.showStoryEnding({
@@ -483,9 +501,10 @@ function CreateScene()
     nebulaModel:SetMaterial(nebulaMat)
     nebulaNode.rotation = Quaternion(90, Vector3.RIGHT)
 
-    -- 摄像机
+    -- 摄像机（后上方俯视，向下看10度）
     cameraNode_ = scene_:CreateChild("Camera")
-    cameraNode_.position = Vector3(0, 0.2, -4.5)
+    cameraNode_.position = Vector3(0, 3.5, -5.5)
+    cameraNode_.rotation = Quaternion(10.0, Vector3.RIGHT)  -- 俯视10度
     local camera = cameraNode_:CreateComponent("Camera")
     camera.nearClip = 0.1
     camera.farClip = 600.0
@@ -498,6 +517,7 @@ function CreateScene()
     ulLightNode.position = Vector3(-3.5, 2.5, 8.0)
     local ulLight = ulLightNode:CreateComponent("Light")
     ulLight.lightType = LIGHT_POINT
+    ulLight.perVertex = true
     ulLight.color = Color(1.0, 0.9, 0.7)
     ulLight.brightness = 3.5
     ulLight.range = 18.0
@@ -595,6 +615,7 @@ function CreateShip()
 
     -- 护盾（委托 Shield 模块创建蜂巢几何体）
     Shield.createGeometry({ shipNode = shipNode_, cache = cache, pulseMat = shieldPulseMat_ })
+    Shield.setEventBus(eventBus_)
 
     -- 程序化生成16x16柔边圆形纹理（共用于翼尖拖尾+火花粒子）
     local circleImg = Image:new()
@@ -680,10 +701,12 @@ function HandleUpdate(eventType, eventData)
 
     if gs.phase == STATE_PLAYING then
         gs.gameTime = gs.gameTime + dt
-        UpdateShip(dt)
-        UpdateWarp(dt)
+        ShipController.updateMovement(dt, frameCount_)
+        ShipController.updateWarp(dt)
+        -- 更新引擎音效（根据加速状态）
+        GameAudio.updateEngine(inputMgr_:isAccelerating())
         UpdateShooting(dt)
-        Shield.update(dt, gs)
+        Shield.update(dt, gs, inputMgr_)
         UpdateBullets(dt)
         UpdateAsteroids(dt)
         UpdateCrystals(dt)
@@ -756,188 +779,10 @@ function HandleUpdate(eventType, eventData)
 end
 
 -- ============================================================================
--- 飞船控制
+-- 飞船控制（委托 ShipController 模块）
 -- ============================================================================
 
-function UpdateShip(dt)
-    local moveX = 0
-    local moveY = 0
-
-    if not gs.rollActive then
-        if input:GetKeyDown(KEY_A) or input:GetKeyDown(KEY_LEFT) then
-            moveX = -1
-        end
-        if input:GetKeyDown(KEY_D) or input:GetKeyDown(KEY_RIGHT) then
-            moveX = 1
-        end
-    end
-    if input:GetKeyDown(KEY_W) or input:GetKeyDown(KEY_UP) then
-        moveY = 1
-    end
-    if input:GetKeyDown(KEY_S) or input:GetKeyDown(KEY_DOWN) then
-        moveY = -1
-    end
-
-    -- X键减速（折跃中不可减速）
-    if not gs.warpActive and input:GetKeyDown(KEY_X) then
-        gs.speed = math_max(10.0, gs.speed - 40 * dt)
-    end
-
-    -- C键加速
-    if not gs.warpActive and input:GetKeyDown(KEY_C) then
-        gs.speed = math_min(gs.maxSpeed, gs.speed + 60 * dt)
-    end
-
-    -- 速度平滑：有输入时加速，无输入时减速
-    if moveX ~= 0 then
-        gs.shipVelX = gs.shipVelX + moveX * gs.shipAccel * dt
-        gs.shipVelX = math_max(-gs.shipMoveSpeed, math_min(gs.shipMoveSpeed, gs.shipVelX))
-    else
-        if gs.shipVelX > 0 then
-            gs.shipVelX = math_max(0, gs.shipVelX - gs.shipDecel * dt)
-        elseif gs.shipVelX < 0 then
-            gs.shipVelX = math_min(0, gs.shipVelX + gs.shipDecel * dt)
-        end
-    end
-
-    if moveY ~= 0 then
-        gs.shipVelY = gs.shipVelY + moveY * gs.shipAccel * dt
-        gs.shipVelY = math_max(-gs.shipMoveSpeed, math_min(gs.shipMoveSpeed, gs.shipVelY))
-    else
-        if gs.shipVelY > 0 then
-            gs.shipVelY = math_max(0, gs.shipVelY - gs.shipDecel * dt)
-        elseif gs.shipVelY < 0 then
-            gs.shipVelY = math_min(0, gs.shipVelY + gs.shipDecel * dt)
-        end
-    end
-
-    -- 更新位置
-    gs.shipX = gs.shipX + gs.shipVelX * dt
-    gs.shipY = gs.shipY + gs.shipVelY * dt
-
-    -- 限制范围（碰到边缘时清零速度）
-    if gs.shipX < -gs.moveRangeX then gs.shipX = -gs.moveRangeX; gs.shipVelX = 0 end
-    if gs.shipX > gs.moveRangeX then gs.shipX = gs.moveRangeX; gs.shipVelX = 0 end
-    if gs.shipY < -gs.moveRangeY then gs.shipY = -gs.moveRangeY; gs.shipVelY = 0 end
-    if gs.shipY > gs.moveRangeY then gs.shipY = gs.moveRangeY; gs.shipVelY = 0 end
-
-    -- 待机微晃动（速度越小晃动越明显）
-    local idleFactor = 1.0 - math_min(1.0, (math_abs(gs.shipVelX) + math_abs(gs.shipVelY)) / gs.shipMoveSpeed)
-    local idleOffsetX = math_sin(time.elapsedTime * 1.2) * 0.06 * idleFactor
-    local idleOffsetY = math_sin(time.elapsedTime * 0.9 + 1.5) * 0.04 * idleFactor
-
-    -- 应用位置
-    shipNode_.position = Vector3(gs.shipX + idleOffsetX, gs.shipY + idleOffsetY, 0)
-
-    -- 倾斜视觉效果（基于速度比例，更自然）
-    local tiltRatioX = gs.shipVelX / gs.shipMoveSpeed
-    local tiltRatioY = gs.shipVelY / gs.shipMoveSpeed
-    local targetTiltZ = -tiltRatioX * 30
-    local targetTiltX = tiltRatioY * 12
-    local lerpSpeed = 6.0 * dt
-    gs.currentTiltZ = gs.currentTiltZ + (targetTiltZ - gs.currentTiltZ) * lerpSpeed
-    gs.currentTiltX = gs.currentTiltX + (targetTiltX - gs.currentTiltX) * lerpSpeed
-
-    if math_abs(gs.currentTiltZ) < 0.01 then gs.currentTiltZ = 0 end
-    if math_abs(gs.currentTiltX) < 0.01 then gs.currentTiltX = 0 end
-
-    -- 翻滚冷却更新
-    if gs.rollCdLeftTimer > 0 then gs.rollCdLeftTimer = gs.rollCdLeftTimer - dt end
-    if gs.rollCdRightTimer > 0 then gs.rollCdRightTimer = gs.rollCdRightTimer - dt end
-
-    -- 翻滚技能：Q/E 触发（需要冷却结束）
-    if not gs.rollActive then
-        if input:GetKeyPress(KEY_Q) and gs.rollCdLeftTimer <= 0 then
-            gs.rollActive = true
-            gs.rollTimer = gs.rollDuration
-            gs.rollDirection = -1
-            gs.rollAngle = 0
-            gs.rollCdLeftTimer = gs.rollCd
-        elseif input:GetKeyPress(KEY_E) and gs.rollCdRightTimer <= 0 then
-            gs.rollActive = true
-            gs.rollTimer = gs.rollDuration
-            gs.rollDirection = 1
-            gs.rollAngle = 0
-            gs.rollCdRightTimer = gs.rollCd
-        end
-    end
-
-    -- 翻滚角度更新 + 方向位移
-    if gs.rollActive then
-        gs.rollTimer = gs.rollTimer - dt
-        if gs.rollTimer <= 0 then
-            gs.rollActive = false
-            gs.rollAngle = 0
-            gs.rollWobbleTimer = gs.rollWobbleDuration
-            gs.rollWobbleDir = gs.rollDirection
-        else
-            gs.rollAngle = (1.0 - gs.rollTimer / gs.rollDuration) * 360.0 * gs.rollDirection
-            local rollSpeed = 8.0
-            gs.shipX = gs.shipX + gs.rollDirection * rollSpeed * dt
-        end
-    end
-
-    -- 翻滚结束后摇晃衰减
-    local wobbleAngle = 0
-    if gs.rollWobbleTimer > 0 then
-        gs.rollWobbleTimer = gs.rollWobbleTimer - dt
-        if gs.rollWobbleTimer <= 0 then
-            gs.rollWobbleTimer = 0
-        else
-            local decay = gs.rollWobbleTimer / gs.rollWobbleDuration
-            local freq = 14.0
-            local elapsed = gs.rollWobbleDuration - gs.rollWobbleTimer
-            wobbleAngle = math_sin(elapsed * freq) * decay * decay * 24.0 * gs.rollWobbleDir
-        end
-    end
-
-    -- 叠加翻滚+摇晃到飞船旋转（Z轴）
-    local finalTiltZ = gs.currentTiltZ + gs.rollAngle + wobbleAngle
-    shipNode_.rotation = Quaternion(gs.currentTiltX, 0, finalTiltZ)
-
-    -- 引擎拖尾更新（委托模块）
-    EngineTrails.updatePlaying(dt, shipNode_, gs, frameCount_)
-end
-
--- ============================================================================
--- 折跃系统
--- ============================================================================
-
-function UpdateWarp(dt)
-    -- 折跃激活中
-    if gs.warpActive then
-        gs.warpTimer = gs.warpTimer - dt
-        gs.speed = gs.warpSpeed
-        if gs.warpTimer <= 0 then
-            gs.warpActive = false
-            gs.speed = gs.maxSpeed * 0.5
-        end
-        return
-    end
-
-    -- 充能中（长按空格）
-    if gs.warpCharging then
-        if input:GetKeyDown(KEY_SPACE) then
-            gs.warpChargeTimer = gs.warpChargeTimer - dt
-            if gs.warpChargeTimer <= 0 then
-                gs.warpActive = true
-                gs.warpTimer = gs.warpDuration
-                gs.warpCharging = false
-                gs.warpEnergy = 0
-            end
-        else
-            gs.warpCharging = false
-            gs.warpChargeTimer = 0
-        end
-        return
-    end
-
-    -- 能量满时按空格开始充能
-    if gs.warpEnergy >= gs.warpMaxEnergy and input:GetKeyDown(KEY_SPACE) then
-        gs.warpCharging = true
-        gs.warpChargeTimer = gs.warpChargeTime
-    end
-end
+-- （折跃系统已移入 ShipController 模块）
 
 -- ============================================================================
 -- 射击系统
@@ -1047,11 +892,7 @@ function UpdateDifficulty(dt)
     -- 存活加分（每秒约 1 分，warp时双倍）
     gs.score = gs.score + (gs.warpActive and 2 or 1)
 
-    -- 剧情触发检测（委托给 Story 模块）
-    local triggeredIdx = story_:checkTrigger(gs.score)
-    if triggeredIdx then
-        ShowStoryChoiceUI(triggeredIdx)
-    end
+
 end
 
 -- ============================================================================

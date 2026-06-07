@@ -52,6 +52,7 @@ function M.createScene(deps)
     ulLightNode.position = Vector3(-3.5, 2.5, 8.0)
     local ulLight = ulLightNode:CreateComponent("Light")
     ulLight.lightType = LIGHT_POINT
+    ulLight.perVertex = true
     ulLight.color = Color(1.0, 0.9, 0.7)
     ulLight.brightness = 3.5
     ulLight.range = 18.0

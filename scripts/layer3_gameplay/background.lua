@@ -23,7 +23,9 @@ local starDustCount_ = 50
 local starDustMat_ = nil
 
 -- 星河
+---@type Node
 local starfieldNode_ = nil
+---@type BillboardSet
 local starfieldBBS_ = nil
 local starBreathIndices_ = {}
 local starBreathBaseSize_ = {}
@@ -85,6 +87,10 @@ end
 -- ============================================================================
 
 function Background.createStarDusts()
+    -- 清除旧节点（防止重复调用时产生孤儿节点）
+    for _, dust in ipairs(starDusts_) do
+        if dust.node then dust.node:Remove() end
+    end
     starDusts_ = {}
     for i = 1, starDustCount_ do
         local dustNode = scene_:CreateChild("StarDust")
@@ -258,6 +264,10 @@ local function SpawnMeteorGroup()
 end
 
 function Background.createMeteors()
+    -- 清除旧节点
+    for _, m in ipairs(meteors_) do
+        if m.node then m.node:Remove() end
+    end
     meteors_ = {}
     local count = 12
     for i = 1, count do
@@ -386,6 +396,10 @@ end
 -- ============================================================================
 
 function Background.createDecoAsteroids()
+    -- 清除旧节点
+    for _, deco in ipairs(decoAsteroids_) do
+        if deco.node then deco.node:Remove() end
+    end
     decoAsteroids_ = AsteroidBuilder.createDecoAsteroids({
         scene = scene_,
         moveRangeX = moveRangeX_,

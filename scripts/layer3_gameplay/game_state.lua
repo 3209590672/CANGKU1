@@ -1,7 +1,10 @@
 -- ============================================================================
 -- GameState: 纯数据容器（无逻辑）
 -- 遵循编程准则：SRP（一句话 = 持有当前局游戏的全部运行时状态数据）
+-- 所有数值参数统一从 Config 读取，Config 为唯一数据源
 -- ============================================================================
+
+local Config = require("layer4_content/config")
 
 local GameState = {}
 
@@ -9,84 +12,84 @@ local GameState = {}
 function GameState.new()
     return {
         -- === 游戏流程 ===
-        phase = 1,           -- STATE_MENU=1, STATE_PLAYING=2, STATE_GAMEOVER=3, STATE_STORY_CHOICE=4, STATE_STORY_ENDING=5
+        phase = 1,           -- 由 FSM transition 事件同步写入
         gameTime = 0,
         frameCount = 0,
 
         -- === 战斗 ===
         score = 0,
-        lives = 5,
+        lives = Config.ship.lives,
         invincibleTimer = 0,
-        invincibleDuration = 1.5,
+        invincibleDuration = Config.invincible.duration,
 
         -- === 移动 ===
-        speed = 20.0,
-        maxSpeed = 80.0,
-        speedIncrement = 0.5,
+        speed = Config.speed.initial,
+        maxSpeed = Config.speed.max,
+        speedIncrement = Config.speed.increment,
         shipX = 0.0,
         shipY = 0.0,
-        shipMoveSpeed = 6.5,
-        moveRangeX = 6.0,
-        moveRangeY = 3.2,
+        shipMoveSpeed = Config.ship.moveSpeed,
+        moveRangeX = 6.0,       -- 动态计算，由 CalculateVisibleRange 覆写
+        moveRangeY = 3.2,       -- 动态计算，由 CalculateVisibleRange 覆写
         shipVelX = 0.0,
         shipVelY = 0.0,
-        shipAccel = 60.0,
-        shipDecel = 40.0,
+        shipAccel = Config.ship.accel,
+        shipDecel = Config.ship.decel,
         currentTiltX = 0.0,
         currentTiltZ = 0.0,
 
         -- === 护盾 ===
         shieldActive = false,
-        shieldDuration = 5.0,
+        shieldDuration = Config.shield.duration,
         shieldTimer = 0,
-        shieldCooldown = 5.0,
+        shieldCooldown = Config.shield.cooldown,
         shieldCoolTimer = 0,
-        shieldAnimTime = 0.75,
+        shieldAnimTime = Config.shield.animTime,
         shieldAnimTimer = 0,
         shieldAnimState = "none",
 
         -- === 翻滚 ===
         rollActive = false,
         rollTimer = 0,
-        rollDuration = 0.5,
+        rollDuration = Config.roll.duration,
         rollDirection = 0,
         rollAngle = 0,
-        rollCd = 5.0,
+        rollCd = Config.roll.cooldown,
         rollCdLeftTimer = 0,
         rollCdRightTimer = 0,
         rollWobbleTimer = 0,
-        rollWobbleDuration = 1.0,
+        rollWobbleDuration = Config.roll.wobbleDuration,
         rollWobbleDir = 0,
 
         -- === 折跃 ===
         warpEnergy = 0,
-        warpMaxEnergy = 5,
+        warpMaxEnergy = Config.warp.maxEnergy,
         warpCharging = false,
-        warpChargeTime = 5.0,
+        warpChargeTime = Config.warp.chargeTime,
         warpChargeTimer = 0,
         warpActive = false,
-        warpDuration = 10.0,
+        warpDuration = Config.warp.duration,
         warpTimer = 0,
-        warpSpeed = 150.0,
+        warpSpeed = Config.warp.speed,
 
         -- === 小行星 ===
         asteroids = {},
         asteroidSpawnTimer = 0,
-        asteroidSpawnInterval = 0.4,
-        asteroidMinInterval = 0.12,
+        asteroidSpawnInterval = Config.asteroid.spawnInterval,
+        asteroidMinInterval = Config.asteroid.minInterval,
 
         -- === 碰撞参数 ===
-        shipRadius = 0.8,
-        asteroidRadius = 1.2,
+        shipRadius = Config.ship.radius,
+        asteroidRadius = Config.asteroid.radius,
     }
 end
 
 --- 重置为游戏开始状态（保留 moveRange 等动态计算值）
+--- 注意：phase 由 FSM 驱动，不在此处设置
 function GameState.resetForNewGame(state)
-    state.phase = 2  -- STATE_PLAYING
     state.score = 0
-    state.lives = 5
-    state.speed = 20.0
+    state.lives = Config.ship.lives
+    state.speed = Config.speed.initial
     state.shipX = 0.0
     state.shipY = 0.0
     state.shipVelX = 0.0
@@ -96,7 +99,7 @@ function GameState.resetForNewGame(state)
     state.gameTime = 0
     state.invincibleTimer = 0
     state.asteroidSpawnTimer = 0
-    state.asteroidSpawnInterval = 0.4
+    state.asteroidSpawnInterval = Config.asteroid.spawnInterval
 
     -- 护盾
     state.shieldActive = false

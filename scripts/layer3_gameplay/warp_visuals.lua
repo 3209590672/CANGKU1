@@ -54,6 +54,7 @@ function M.createStreaks(deps)
     warpGlowNode_.position = Vector3(0, 0, -0.5)
     local light = warpGlowNode_:CreateComponent("Light")
     light.lightType = LIGHT_POINT
+    light.perVertex = true
     light.color = Color(0.4, 0.7, 1.0)
     light.brightness = 60
     light.range = 8.0

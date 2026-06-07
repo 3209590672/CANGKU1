@@ -1,0 +1,33 @@
+{
+  "$schema": "../schemas/project.schema.json",
+  "project_id": "p_5ped",
+  "author": {
+    "id": "1837508739"
+  },
+  "entry": "main.lua",
+  "version": "1.0.6",
+  "taptap_publish": {
+    "title": "宇宙航行",
+    "description": "驾驶飞船在宇宙中穿梭，闪避小行星，收集能量水晶，体验星际冒险之旅",
+    "category": "action",
+    "screen_orientation": "landscape",
+    "collection_type": "sce",
+    "trial_note": "<developer's note>",
+    "app_platforms": "1,2",
+    "developer_id": 275470,
+    "app_id": 867664,
+    "miniapp_id": "tapmclzc9ztxmor7yt"
+  },
+  "assets": {
+    "icon": "",
+    "screenshots": [],
+    "promotional_image": ""
+  },
+  "test_qrcode": {
+    "url": "https://tapcode-sce.spark.xd.com/qrcode/p_5ped_1780735842739.png",
+    "generated_at": "2026-06-06T08:50:42.947Z"
+  },
+  "metadata": {
+    "updated_at": "2026-06-06T08:50:42.947Z"
+  }
+}

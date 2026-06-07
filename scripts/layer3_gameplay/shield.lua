@@ -190,6 +190,7 @@ function M.createGeometry(deps)
     shieldGlow.position = Vector3(0, 0, 0.5)
     local gl = shieldGlow:CreateComponent("Light")
     gl.lightType = LIGHT_POINT
+    gl.perVertex = true
     gl.color = Color(0.4, 0.7, 1.0)
     gl.brightness = 6.0
     gl.range = 5.0
@@ -204,10 +205,19 @@ function M.createGeometry(deps)
     return { node = node, pulseMat = pulseMat, fillMat = fillMat }
 end
 
+-- eventBus 引用（由外部注入）
+local eventBus_ = nil
+
+--- 设置 eventBus（由 main 调用）
+function M.setEventBus(eb)
+    eventBus_ = eb
+end
+
 --- 更新护盾逻辑（冷却/动画/激活）
 ---@param dt number 帧时间
 ---@param gs table 游戏状态
-function M.update(dt, gs)
+---@param inputMgr table|nil InputManager实例（手机端需要）
+function M.update(dt, gs, inputMgr)
     -- 冷却计时
     if gs.shieldCoolTimer > 0 then
         gs.shieldCoolTimer = math_max(0, gs.shieldCoolTimer - dt)
@@ -267,10 +277,12 @@ function M.update(dt, gs)
             gs.shieldActive = false
             gs.shieldAnimState = "collapsing"
             gs.shieldAnimTimer = 0
+            if eventBus_ then eventBus_:emit("shield_deactivated") end
         end
     else
-        -- 右键激活护盾
-        if gs.shieldCoolTimer <= 0 and gs.shieldAnimState == "none" and input:GetMouseButtonPress(MOUSEB_RIGHT) then
+        -- 激活护盾（鼠标右键 / 手机护盾按钮）
+        local shieldInput = inputMgr and inputMgr:isShielding() or input:GetMouseButtonPress(MOUSEB_RIGHT)
+        if gs.shieldCoolTimer <= 0 and gs.shieldAnimState == "none" and shieldInput then
             gs.shieldActive = true
             gs.shieldTimer = gs.shieldDuration
             if shieldNode_ then
@@ -279,6 +291,7 @@ function M.update(dt, gs)
             end
             gs.shieldAnimState = "expanding"
             gs.shieldAnimTimer = 0
+            if eventBus_ then eventBus_:emit("shield_activated") end
         end
     end
 end

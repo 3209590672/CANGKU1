@@ -7,16 +7,27 @@ local table_remove = table.remove
 local Asteroids = {}
 
 -- 依赖注入
+---@type table
 local state_ = nil           -- GameState 引用（读写 asteroids, asteroidSpawnTimer 等）
+---@type Scene
 local scene_ = nil
+---@type table
 local AsteroidBuilder_ = nil
+---@type table
 local meshPool_ = nil
+---@type number
 local meshPoolSize_ = nil
+---@type table
 local rockMats_ = nil
+---@type table
 local debrisMats_ = nil
+---@type any
 local crackMat_ = nil
+---@type any
 local oreMat_ = nil
+---@type any
 local mdlSphere_ = nil
+---@type any
 local mdlBox_ = nil
 
 --- 初始化（一次性，DI 注入所有依赖）

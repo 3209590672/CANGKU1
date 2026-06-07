@@ -4,9 +4,13 @@
 -- ============================================================================
 
 local UI = require("urhox-libs/UI")
+local PlatformUtils = require "urhox-libs.Platform.PlatformUtils"
 
 local math_floor = math.floor
 local table_insert = table.insert
+
+-- 平台检测缓存
+local isMobile_ = PlatformUtils.IsTouchSupported()
 
 local GameUI = {}
 
@@ -83,14 +87,24 @@ function GameUI.showMenu(ctx)
         children = { menuStartBtn },
     })
 
-    -- 底部操作提示
-    table_insert(menuChildren, UI.Panel {
-        position = "absolute",
-        bottom = 30,
-        left = 0,
-        width = "100%",
-        alignItems = "center",
-        children = {
+    -- 底部操作提示（根据平台切换）
+    local tipChildren
+    if isMobile_ then
+        tipChildren = {
+            UI.Label {
+                text = "左摇杆 移动 | 收集5水晶+长按[跃]按钮 折跃",
+                fontSize = 12,
+                fontColor = { 160, 160, 170, 150 },
+                marginBottom = 6,
+            },
+            UI.Label {
+                text = "[射击] 开火 | [盾] 护盾 | [↺][↻] 翻滚",
+                fontSize = 12,
+                fontColor = { 160, 160, 170, 150 },
+            },
+        }
+    else
+        tipChildren = {
             UI.Label {
                 text = "WASD/方向键 移动 | Shift 减速 | 收集5水晶+长按空格 折跃",
                 fontSize = 13,
@@ -102,7 +116,15 @@ function GameUI.showMenu(ctx)
                 fontSize = 13,
                 fontColor = { 160, 160, 170, 150 },
             },
-        },
+        }
+    end
+    table_insert(menuChildren, UI.Panel {
+        position = "absolute",
+        bottom = 30,
+        left = 0,
+        width = "100%",
+        alignItems = "center",
+        children = tipChildren,
     })
 
     -- 音乐按钮
@@ -276,26 +298,28 @@ function GameUI.showPlaying(ctx)
         alignItems = "center",
     }
 
-    -- 翻滚技能面板
+    -- 翻滚技能面板（手机端隐藏，触摸按钮已替代）
     local rollLeftIcon = UI.Label { text = "↺", fontSize = 16, fontColor = { 60, 140, 255, 200 }, textAlign = "center" }
     local rollLeftPanel = UI.Panel {
-        width = 52, height = 52,
-        borderRadius = 8, borderWidth = 2,
+        width = isMobile_ and 0 or 52, height = isMobile_ and 0 or 52,
+        borderRadius = 8, borderWidth = isMobile_ and 0 or 2,
         borderColor = { 60, 140, 255, 200 },
-        backgroundColor = { 10, 10, 20, 140 },
+        backgroundColor = isMobile_ and { 0, 0, 0, 0 } or { 10, 10, 20, 140 },
         alignItems = "center", justifyContent = "center",
-        marginRight = 12,
-        children = { rollLeftIcon, rollLeftLabel },
+        marginRight = isMobile_ and 0 or 12,
+        overflow = "hidden",
+        children = isMobile_ and {} or { rollLeftIcon, rollLeftLabel },
     }
     local rollRightIcon = UI.Label { text = "↻", fontSize = 16, fontColor = { 60, 140, 255, 200 }, textAlign = "center" }
     local rollRightPanel = UI.Panel {
-        width = 52, height = 52,
-        borderRadius = 8, borderWidth = 2,
+        width = isMobile_ and 0 or 52, height = isMobile_ and 0 or 52,
+        borderRadius = 8, borderWidth = isMobile_ and 0 or 2,
         borderColor = { 60, 140, 255, 200 },
-        backgroundColor = { 10, 10, 20, 140 },
+        backgroundColor = isMobile_ and { 0, 0, 0, 0 } or { 10, 10, 20, 140 },
         alignItems = "center", justifyContent = "center",
-        marginLeft = 12,
-        children = { rollRightIcon, rollRightLabel },
+        marginLeft = isMobile_ and 0 or 12,
+        overflow = "hidden",
+        children = isMobile_ and {} or { rollRightIcon, rollRightLabel },
     }
 
     -- 底部仪表盘
@@ -325,9 +349,9 @@ function GameUI.showPlaying(ctx)
                 flexDirection = "row",
                 children = {
                     rollLeftPanel,
-                    -- 外壳
+                    -- 外壳（手机端更紧凑）
                     UI.Panel {
-                        width = 480,
+                        width = isMobile_ and 360 or 480,
                         backgroundColor = { 3, 6, 16, 140 },
                         borderRadius = 14, borderWidth = 1,
                         borderColor = { 40, 100, 180, 70 },
@@ -341,11 +365,11 @@ function GameUI.showPlaying(ctx)
                                 children = {
                                     -- 左翼面板
                                     UI.Panel {
-                                        width = 130,
+                                        width = isMobile_ and 100 or 130,
                                         backgroundColor = { 8, 14, 30, 140 },
                                         borderRadius = 10,
                                         paddingTop = 5, paddingBottom = 5,
-                                        paddingLeft = 10, paddingRight = 10,
+                                        paddingLeft = isMobile_ and 6 or 10, paddingRight = isMobile_ and 6 or 10,
                                         alignItems = "center", justifyContent = "center",
                                         children = {
                                             UI.Label { text = "⬡ HEAT", fontSize = 8, fontColor = { 60, 160, 100, 180 }, textAlign = "center", marginBottom = 2 },
@@ -373,18 +397,18 @@ function GameUI.showPlaying(ctx)
                                     UI.Panel { width = 1, backgroundColor = { 40, 100, 180, 50 }, marginTop = 8, marginBottom = 8 },
                                     -- 右翼面板
                                     UI.Panel {
-                                        width = 130,
+                                        width = isMobile_ and 100 or 130,
                                         backgroundColor = { 8, 14, 30, 140 },
                                         borderRadius = 10,
                                         paddingTop = 5, paddingBottom = 5,
-                                        paddingLeft = 10, paddingRight = 10,
+                                        paddingLeft = isMobile_ and 6 or 10, paddingRight = isMobile_ and 6 or 10,
                                         alignItems = "center", justifyContent = "center",
                                         children = {
                                             UI.Label { text = "⬡ WARP", fontSize = 8, fontColor = { 140, 100, 220, 180 }, textAlign = "center", marginBottom = 2 },
                                             warpStatus, warpBar,
                                             UI.Panel { width = "70%", height = 1, backgroundColor = { 40, 100, 140, 60 }, marginTop = 4, marginBottom = 3 },
                                             UI.Label { text = "⬡ ENGAGE", fontSize = 8, fontColor = { 100, 80, 180, 180 }, textAlign = "center", marginBottom = 2 },
-                                            UI.Label { text = "[SPACE]", fontSize = 10, fontColor = { 130, 110, 200, 200 }, textAlign = "center" },
+                                            UI.Label { text = isMobile_ and "[跃]" or "[SPACE]", fontSize = 10, fontColor = { 130, 110, 200, 200 }, textAlign = "center" },
                                         },
                                     },
                                 },
@@ -519,91 +543,7 @@ function GameUI.showGameOver(ctx)
     return { endingMusicBtn = endingMusicBtn }
 end
 
--- ============================================================================
--- 剧情选项弹窗
--- ============================================================================
 
---- 显示剧情选择界面
---- @param ctx table { thresholdIdx, score, story, onChoiceMade }
-function GameUI.showStoryChoice(ctx)
-    local titleText = string.format("— 第 %d 次航行抉择 —", ctx.thresholdIdx)
-
-    local root = UI.Panel {
-        width = "100%",
-        height = "100%",
-        justifyContent = "center",
-        alignItems = "center",
-        backgroundColor = { 2, 2, 15, 220 },
-        children = {
-            UI.Panel {
-                width = 420,
-                backgroundColor = { 10, 15, 35, 240 },
-                borderRadius = 16, borderWidth = 1,
-                borderColor = { 60, 120, 200, 120 },
-                paddingTop = 30, paddingBottom = 30,
-                paddingLeft = 30, paddingRight = 30,
-                alignItems = "center",
-                children = {
-                    UI.Label {
-                        text = titleText,
-                        fontSize = 20,
-                        fontColor = { 180, 220, 255, 255 },
-                        marginBottom = 8,
-                    },
-                    UI.Label {
-                        text = string.format("当前得分: %d", ctx.score),
-                        fontSize = 14,
-                        fontColor = { 150, 180, 200, 180 },
-                        marginBottom = 24,
-                    },
-                    -- 选项 1：修复飞船
-                    UI.Button {
-                        text = "修复飞船（恢复满生命值）",
-                        width = "100%", height = 48,
-                        fontSize = 16, variant = "primary",
-                        marginBottom = 12,
-                        onClick = function()
-                            ctx.onChoiceMade("repair", ctx.thresholdIdx)
-                        end,
-                    },
-                    -- 选项 2：生命探索
-                    UI.Button {
-                        text = "进行一次生命探索",
-                        width = "100%", height = 48,
-                        fontSize = 16, variant = "default",
-                        marginBottom = 12,
-                        onClick = function()
-                            ctx.onChoiceMade("explore", ctx.thresholdIdx)
-                        end,
-                    },
-                    -- 选项 3：位置广播
-                    UI.Button {
-                        text = "进行一次位置广播",
-                        width = "100%", height = 48,
-                        fontSize = 16, variant = "default",
-                        onClick = function()
-                            ctx.onChoiceMade("broadcast", ctx.thresholdIdx)
-                        end,
-                    },
-                    -- 当前记录
-                    UI.Panel {
-                        width = "100%", marginTop = 20, paddingTop = 12,
-                        borderColor = { 40, 80, 140, 60 },
-                        children = {
-                            UI.Label {
-                                text = ctx.story:getRecordText(),
-                                fontSize = 12,
-                                fontColor = { 120, 150, 180, 160 },
-                                textAlign = "center", width = "100%",
-                            },
-                        },
-                    },
-                },
-            },
-        },
-    }
-    UI.SetRoot(root)
-end
 
 -- ============================================================================
 -- 剧情结局界面

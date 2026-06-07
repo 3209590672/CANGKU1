@@ -4,7 +4,7 @@ Layer 3 - 游戏逻辑：飞船建造器
 返回飞船节点及相关引用（护盾、拖尾等）
 --]]
 
-local unpack = unpack or table.unpack
+local unpack = table.unpack
 
 local GeomUtils = require("layer2_patterns/geometry_utils")
 local MatFactory = require("layer2_patterns/material_factory")
@@ -411,7 +411,7 @@ function ShipBuilder.build(scene, resourceCache)
         fl2M:SetModel(resourceCache:GetResource("Model", "Models/Sphere.mdl"))
         fl2M:SetMaterial(MakeGlowMat(unpack(matDefs.flame2)))
 
-        -- 引擎光源
+        -- 引擎光源（perVertex 减少渲染视图占用）
         local eLt = shipNode:CreateChild("ELt")
         eLt.position = Vector3(ex, eCfg.flamePos.y, eCfg.lightZ)
         local el = eLt:CreateComponent("Light")
@@ -419,6 +419,7 @@ function ShipBuilder.build(scene, resourceCache)
         el.color = Color(eCfg.lightColor[1], eCfg.lightColor[2], eCfg.lightColor[3])
         el.brightness = eCfg.lightBrightness
         el.range = eCfg.lightRange
+        el.perVertex = true
     end
 
     -- ==== 中央辅助引擎 ====
@@ -461,6 +462,7 @@ function ShipBuilder.build(scene, resourceCache)
     rl.color = Color(rct.lightColor[1], rct.lightColor[2], rct.lightColor[3])
     rl.brightness = rct.lightBrightness
     rl.range = rct.lightRange
+    rl.perVertex = true
 
     -- 武器挂点
     local wp = det.weapons

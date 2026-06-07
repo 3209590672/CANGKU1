@@ -10,13 +10,14 @@ local Weapons = {}
 
 -- 依赖注入
 local scene_
-local input_
+local inputMgr_
 local mdlBox_
 local mdlSphere_
 local bulletCoreMat_
 local bulletGlowMat_
 local bulletTrailMats_
 local bulletTipMat_
+local eventBus_
 
 -- 内部状态
 local bullets_ = {}
@@ -37,10 +38,10 @@ local overheatTimer_ = 0
 local getShipPos_ = nil
 
 --- 初始化
--- @param ctx { scene, input, mdlBox, mdlSphere, bulletCoreMat, bulletGlowMat, bulletTrailMats, bulletTipMat, getShipPos }
+-- @param ctx { scene, inputMgr, mdlBox, mdlSphere, bulletCoreMat, bulletGlowMat, bulletTrailMats, bulletTipMat, getShipPos }
 function Weapons.init(ctx)
     scene_ = ctx.scene
-    input_ = ctx.input
+    inputMgr_ = ctx.inputMgr
     mdlBox_ = ctx.mdlBox
     mdlSphere_ = ctx.mdlSphere
     bulletCoreMat_ = ctx.bulletCoreMat
@@ -48,6 +49,7 @@ function Weapons.init(ctx)
     bulletTrailMats_ = ctx.bulletTrailMats
     bulletTipMat_ = ctx.bulletTipMat
     getShipPos_ = ctx.getShipPos
+    eventBus_ = ctx.eventBus
 end
 
 --- 重置状态（开始新游戏时调用）
@@ -85,10 +87,11 @@ function Weapons.updateShooting(dt)
     end
 
     -- 左键射击
-    if not overheated_ and fireTimer_ <= 0 and input_:GetMouseButtonDown(MOUSEB_LEFT) then
+    if not overheated_ and fireTimer_ <= 0 and inputMgr_:isFiring() then
         Weapons.fireBullet()
         fireTimer_ = fireRate_
         heat_ = heat_ + heatPerShot_
+        if eventBus_ then eventBus_:emit("bullet_fired") end
 
         -- 过热判断
         if heat_ >= heatMax_ then

@@ -1,7 +1,8 @@
 -- ============================================================================
 -- Collisions 模块：碰撞检测
 -- 职责：子弹vs小行星、飞船vs小行星、飞船vs水晶
--- 副作用通过直接读写 GameState 完成（纯数据容器模式）
+-- 数据变更通过直接读写 GameState 完成（纯数据容器模式）
+-- 跨模块通知通过 EventBus 发射事件（解耦模块间依赖）
 -- ============================================================================
 local math_floor = math.floor
 local table_remove = table.remove
@@ -9,12 +10,18 @@ local table_remove = table.remove
 local Collisions = {}
 
 -- 依赖注入
+---@type table
 local state_ = nil
+---@type table
 local Weapons_ = nil
+---@type table
 local Asteroids_ = nil
+---@type table
 local Crystals_ = nil
+---@type table
 local Effects_ = nil
-local onGameOver_ = nil  -- 回调：lives <= 0 时触发
+---@type table
+local eventBus_ = nil  -- Layer 1 事件总线
 
 --- 初始化
 ---@param ctx table
@@ -24,7 +31,7 @@ function Collisions.init(ctx)
     Asteroids_ = ctx.Asteroids
     Crystals_ = ctx.Crystals
     Effects_ = ctx.Effects
-    onGameOver_ = ctx.onGameOver
+    eventBus_ = ctx.eventBus
 end
 
 --- 每帧碰撞检测
@@ -61,6 +68,7 @@ function Collisions.check()
                         Effects_.spawnExplosion(asteroid.node.position, asteroid.radius * 1.2, { 0.9, 0.4, 0.1 })
                         Asteroids_.removeAt(ai)
                         numAsteroids = numAsteroids - 1
+                        eventBus_:emit("asteroid_destroyed", asteroid.node.position)
                         hit = true
                         break
                     end
@@ -94,14 +102,16 @@ function Collisions.check()
                 state_.score = state_.score + 5 * scoreMul
                 Effects_.spawnExplosion(asteroid.node.position, asteroid.radius * 0.8, { 0.2, 0.6, 1.0 })
                 Asteroids_.removeAt(i)
+                eventBus_:emit("shield_block")
             else
                 state_.lives = state_.lives - 1
                 state_.invincibleTimer = state_.invincibleDuration
                 Effects_.spawnExplosion(asteroid.node.position, asteroid.radius * 1.0, { 1.0, 0.2, 0.1 })
                 Asteroids_.removeAt(i)
+                eventBus_:emit("ship_hit", state_.lives)
 
                 if state_.lives <= 0 then
-                    onGameOver_()
+                    eventBus_:emit("game_over", state_.score)
                     return
                 end
                 break
@@ -126,6 +136,7 @@ function Collisions.check()
                 state_.warpEnergy = state_.warpEnergy + 1
             end
             Crystals_.removeCrystalAt(i)
+            eventBus_:emit("crystal_collected", state_.warpEnergy)
         end
     end
 end
